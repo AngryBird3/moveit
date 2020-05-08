@@ -38,6 +38,7 @@
 #include <moveit/robot_model/joint_model.h>
 #include <geometric_shapes/shape_operations.h>
 #include <moveit/robot_model/aabb.h>
+#include <moveit/exceptions/exceptions.h>
 
 namespace moveit
 {
@@ -123,3 +124,170 @@ void LinkModel::setVisualMesh(const std::string& visual_mesh, const Eigen::Isome
 
 }  // end of namespace core
 }  // end of namespace moveit
+
+
+  // Eigen Isometry3d
+  template<>
+  struct std::hash<Eigen::Isometry3d>
+  {
+    std::size_t operator()(const Eigen::Isometry3d& transform_matrix) const 
+    {
+        std::size_t h = 0;
+        const Eigen::Transform<double, 3, Eigen::Isometry>::MatrixType matrix = transform_matrix.matrix();
+        for (auto i = 0; i < 4; i++) 
+        {
+          for (auto j = 0; j < 4; j++) 
+          {
+            boost::hash_combine(h, std::hash<double>{}(matrix(i, j)));
+          }
+        }
+        return h;
+    }
+  };
+
+  // Eigen Vector3d
+  template<>
+  struct std::hash<Eigen::Vector3d>
+  {
+    std::size_t operator()(const Eigen::Vector3d& v) const 
+    {
+        std::size_t h = 0;
+        for (auto i = 0; i < 3; i++) 
+        {
+          boost::hash_combine(h, std::hash<double>{}(v(i,0)));
+        }
+        return h;
+    }
+  };
+
+  // ROS Shapes
+  template<>
+  struct std::hash<shapes::Shape>
+  {
+    const std::string LOGNAME = "link_model";
+    virtual std::size_t operator()(const shapes::Shape &shape) const
+    {
+     // 1. I can make it pure virtual but then Plane/Octree needs to
+     //    implement this. But Octee doesn't seem easy and since we
+     //    don't use it in urdf, I don't feel like going with tihs
+     //    route
+     // 2. Throw exception
+     // 3. Return some random num
+    throw moveit::ConstructException("... we're using Shape (base) class implementation for hash");
+    }
+  };
+
+  template<> 
+  struct std::hash<shapes::Box>
+  {
+    std::size_t operator()(const shapes::Box& box) const 
+    {
+      std::size_t h = 0;
+      boost::hash_combine(h, std::hash<std::string>{}(shapes::Box::STRING_NAME));
+      // box size
+      for (auto i = 0; i < 3; i++)
+        boost::hash_combine(h, std::hash<double>{}(box.size[i]));
+      return h;
+    }
+  };
+
+  template<> 
+  struct std::hash<shapes::Cylinder>
+  {
+    std::size_t operator()(const shapes::Cylinder& c) const 
+    {
+      std::size_t h = 0;
+      boost::hash_combine(h, std::hash<std::string>{}(shapes::Cylinder::STRING_NAME));
+      boost::hash_combine(h, std::hash<double>{}(c.length));
+      boost::hash_combine(h, std::hash<double>{}(c.radius));
+      return h;
+    }
+  };
+
+  template<> 
+  struct std::hash<shapes::Mesh>
+  {
+    std::size_t operator()(const shapes::Mesh& m) const 
+    {
+      std::size_t h = 0;
+      boost::hash_combine(h, std::hash<std::string>{}(shapes::Mesh::STRING_NAME));
+      boost::hash_combine(h, std::hash<unsigned int>{}(m.triangle_count));
+      auto n = 3 * m.triangle_count;
+      for(unsigned int i  = 0; i < n; i++) {
+        boost::hash_combine(h, std::hash<unsigned int>{}(m.triangles[i]));
+        boost::hash_combine(h, std::hash<unsigned int>{}(m.triangle_normals[i]));
+      }
+      boost::hash_combine(h, std::hash<unsigned int>{}(m.vertex_count));
+      n = 3 * m.vertex_count;
+      for(unsigned int i = 0; i < n; i++) {
+        boost::hash_combine(h, std::hash<double>{}(m.vertices[i]));
+        boost::hash_combine(h, std::hash<double>{}(m.vertex_normals[i]));
+      }
+      return h;
+    }
+  };
+
+  template<> 
+  struct std::hash<shapes::Sphere>
+  {
+    std::size_t operator()(const shapes::Sphere& s) const 
+    {
+      std::size_t h = 0;
+      boost::hash_combine(h, std::hash<std::string>{}(shapes::Sphere::STRING_NAME));
+      boost::hash_combine(h, std::hash<double>{}(s.radius));
+      return h;
+    }
+  };
+
+  template<> 
+  struct std::hash<moveit::core::LinkModel>
+  {
+    std::size_t operator()(moveit::core::LinkModel const& link) const noexcept
+    {
+			std::size_t h =0;
+      // use Link name_
+			boost::hash_combine(h, std::hash<std::string>{}(link.getName()));
+      boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*link.getParentJointModel()));
+      boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link.getParentLinkModel()));
+      boost::hash_combine(h, std::hash<bool>{}(link.parentJointIsFixed()));
+      boost::hash_combine(h, std::hash<bool>{}(link.jointOriginTransformIsIdentity()));
+
+      // rows = 3 and cols = 4 since it is Isometry3d
+      boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(link.getJointOriginTransform()));
+
+      auto collision_origin_transform = link.getCollisionOriginTransforms();
+      for (auto& collision_isometry : collision_origin_transform) {
+        boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(collision_isometry));
+      }
+
+      auto collision_origin_transforms_identity = link.areCollisionOriginTransformsIdentity();
+      for (auto& identity : collision_origin_transforms_identity) {
+        boost::hash_combine(h, std::hash<int>{}(identity));
+      }
+
+      auto associated_fixed_transforms = link.getAssociatedFixedTransforms();
+      for (auto const& x: associated_fixed_transforms) {
+          const Eigen::Isometry3d matrix = x.second;
+          boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(matrix));
+      }
+    
+      auto shapes = link.getShapes(); 
+      for(auto const& x : shapes) {
+        boost::hash_combine(h, std::hash<shapes::Shape>{}(*x));
+      }
+      boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getShapeExtentsAtOrigin()));
+      boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getCenteredBoundingBoxOffset()));
+      
+      boost::hash_combine(h, std::hash<string>{}(link.getVisualMeshFilename()));
+
+      boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(link.getVisualMeshOrigin()));
+
+      boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getVisualMeshScale()));
+
+      boost::hash_combine(h, std::hash<int>{}(link.getFirstCollisionBodyTransformIndex()));
+
+      boost::hash_combine(h, std::hash<int>{}(link.getLinkIndex()));
+      return h;
+
+    }
+  };
