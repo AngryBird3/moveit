@@ -245,7 +245,6 @@ template<> struct std::hash<moveit::core::PlanarJointModel>
   std::size_t operator()(moveit::core::PlanarJointModel const& joint) const noexcept
   {
     std::size_t h =0;
-    // std::hash<moveit::core::JointModel> joint_model_hash;
     boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(joint));
     boost::hash_combine(h, std::hash<double>{}(joint.getAngularDistanceWeight()));
 

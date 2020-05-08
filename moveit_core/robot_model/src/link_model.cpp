@@ -239,55 +239,51 @@ void LinkModel::setVisualMesh(const std::string& visual_mesh, const Eigen::Isome
     }
   };
 
-  template<> 
-  struct std::hash<moveit::core::LinkModel>
+  std::size_t std::hash<moveit::core::LinkModel>::operator()(moveit::core::LinkModel const& link) const noexcept
   {
-    std::size_t operator()(moveit::core::LinkModel const& link) const noexcept
-    {
-			std::size_t h =0;
-      // use Link name_
-			boost::hash_combine(h, std::hash<std::string>{}(link.getName()));
-      boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*link.getParentJointModel()));
-      boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link.getParentLinkModel()));
-      boost::hash_combine(h, std::hash<bool>{}(link.parentJointIsFixed()));
-      boost::hash_combine(h, std::hash<bool>{}(link.jointOriginTransformIsIdentity()));
+    std::size_t h =0;
+    // use Link name_
+    boost::hash_combine(h, std::hash<std::string>{}(link.getName()));
+    boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*link.getParentJointModel()));
+    boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link.getParentLinkModel()));
+    boost::hash_combine(h, std::hash<bool>{}(link.parentJointIsFixed()));
+    boost::hash_combine(h, std::hash<bool>{}(link.jointOriginTransformIsIdentity()));
 
-      // rows = 3 and cols = 4 since it is Isometry3d
-      boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(link.getJointOriginTransform()));
+    // rows = 3 and cols = 4 since it is Isometry3d
+    boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(link.getJointOriginTransform()));
 
-      auto collision_origin_transform = link.getCollisionOriginTransforms();
-      for (auto& collision_isometry : collision_origin_transform) {
-        boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(collision_isometry));
-      }
-
-      auto collision_origin_transforms_identity = link.areCollisionOriginTransformsIdentity();
-      for (auto& identity : collision_origin_transforms_identity) {
-        boost::hash_combine(h, std::hash<int>{}(identity));
-      }
-
-      auto associated_fixed_transforms = link.getAssociatedFixedTransforms();
-      for (auto const& x: associated_fixed_transforms) {
-          const Eigen::Isometry3d matrix = x.second;
-          boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(matrix));
-      }
-    
-      auto shapes = link.getShapes(); 
-      for(auto const& x : shapes) {
-        boost::hash_combine(h, std::hash<shapes::Shape>{}(*x));
-      }
-      boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getShapeExtentsAtOrigin()));
-      boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getCenteredBoundingBoxOffset()));
-      
-      boost::hash_combine(h, std::hash<string>{}(link.getVisualMeshFilename()));
-
-      boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(link.getVisualMeshOrigin()));
-
-      boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getVisualMeshScale()));
-
-      boost::hash_combine(h, std::hash<int>{}(link.getFirstCollisionBodyTransformIndex()));
-
-      boost::hash_combine(h, std::hash<int>{}(link.getLinkIndex()));
-      return h;
-
+    auto collision_origin_transform = link.getCollisionOriginTransforms();
+    for (auto& collision_isometry : collision_origin_transform) {
+      boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(collision_isometry));
     }
-  };
+
+    auto collision_origin_transforms_identity = link.areCollisionOriginTransformsIdentity();
+    for (auto& identity : collision_origin_transforms_identity) {
+      boost::hash_combine(h, std::hash<int>{}(identity));
+    }
+
+    auto associated_fixed_transforms = link.getAssociatedFixedTransforms();
+    for (auto const& x: associated_fixed_transforms) {
+        const Eigen::Isometry3d matrix = x.second;
+        boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(matrix));
+    }
+  
+    auto shapes = link.getShapes(); 
+    for(auto const& x : shapes) {
+      boost::hash_combine(h, std::hash<shapes::Shape>{}(*x));
+    }
+    boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getShapeExtentsAtOrigin()));
+    boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getCenteredBoundingBoxOffset()));
+    
+    boost::hash_combine(h, std::hash<string>{}(link.getVisualMeshFilename()));
+
+    boost::hash_combine(h, std::hash<Eigen::Isometry3d>{}(link.getVisualMeshOrigin()));
+
+    boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getVisualMeshScale()));
+
+    boost::hash_combine(h, std::hash<int>{}(link.getFirstCollisionBodyTransformIndex()));
+
+    boost::hash_combine(h, std::hash<int>{}(link.getLinkIndex()));
+    return h;
+
+  }

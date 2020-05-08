@@ -744,3 +744,12 @@ protected:
 };
 }
 }
+
+namespace std
+{
+  template<> 
+  struct hash<moveit::core::JointModelGroup>
+  {
+    std::size_t operator()(moveit::core::JointModelGroup const& j) const noexcept;
+  };
+}

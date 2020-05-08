@@ -1429,73 +1429,36 @@ void RobotModel::computeFixedTransforms(const LinkModel* link, const Eigen::Isom
 }  // end of namespace core
 }  // end of namespace moveit
 
-// template<> struct std::hash<moveit::core::RobotModel>
-// {
-//   std::size_t operator()(moveit::core::RobotModel const& r) const noexcept 
-//   {
-//     std::size_t h =0;
-//     boost::hash_combine(h, r.getName()); 
-//     boost::hash_combine(h, r.getModelFrame());
+template<> struct std::hash<moveit::core::RobotModel>
+{
+  std::size_t operator()(moveit::core::RobotModel const& r) const noexcept 
+  {
+    std::size_t h =0;
+    boost::hash_combine(h, r.getName()); 
+    boost::hash_combine(h, r.getModelFrame());
 
 
-//     /**
-//       * RobotModel consists of 2: Joint and Link
-//       * Additionally it has 1) Indexing for Joint and Link 2) Groups
-//       * Groups would be needed for EndEffectors and Planning groups which comes from SRDF
-//       */
-//     std::set<const moveit::core::LinkModel*, moveit::core::OrderLinkByName> sorted_link_models(r.getLinkModels().begin(), r.getLinkModels.end());
-//     std::set<const moveit::core::JointModel*, moveit::core::OrderJointByName> sorted_joint_models(r.joint_model_vector.begin(), r.joint_model_vector.end());
+    /**
+      * RobotModel consists of 2: Joint and Link
+      * Additionally it has 1) Indexing for Joint and Link 2) Groups
+      * Groups would be needed for EndEffectors and Planning groups which comes from SRDF
+      */
+    std::set<const moveit::core::LinkModel*, moveit::core::OrderLinkByName> sorted_link_models(r.getLinkModels().begin(), r.getLinkModels().end());
+    std::set<const moveit::core::JointModel*, moveit::core::OrderJointByName> sorted_joint_models(r.getJointModels().begin(), r.getJointModels().end());
 
-//     for (moveit::core::LinkModel* link_model : sorted_link_models) {
-//       boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link_model));
-//     }
+    for (auto link_model : sorted_link_models) {
+      boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link_model));
+    }
 
-//     for (moveit::core::JointModel* joint_model : sorted_joint_models) {
-//       boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*joint_model));
-//     }
+    for (auto joint_model : sorted_joint_models) {
+      boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*joint_model));
+    }
 
-//     auto joint_model_vectors = r.getJointModelGroups();
-//     for (const moveit::core::JointModelGroup* group: joint_model_groups) {
-//       boost::hash_combine(h, std::hash<moveit::core::JointModelGroup>{}(*group));
-//     }
+    auto joint_model_groups = r.getJointModelGroups();
+    for (auto group: joint_model_groups) {
+      boost::hash_combine(h, std::hash<moveit::core::JointModelGroup>{}(*group));
+    }
 
-//     return h;
-//   }
-// };
-
-// template<> struct std::hash<moveit::core::JointModelGroup>
-// {
-//   std::size_t operator()(moveit::core::JointModelGroup const& j) const noexcept
-//   {
-//     std::size_t h = 0;
-//     boost::hash_combine(h, j.name_);
-
-//     // JointModelGroup contains Link and Joint model different from the RobotModel joint/link_model_Vector_
-//     // JointModelGroup uses srdf::model::Group and srdf::model::EndEffector to construct JointModelGroup
-//     // joints and links.
-//     // The RobotModel joints/link_model_vector_ uses URDF mainly and also srdf::model::VirtualJoints
-
-//     std::set<const moveit::core::LinkModel*, moveit::core::OrderLinkByName> sorted_link_models(j.getLinkModels().begin(), j.getLinkModels().end());
-//     std::set<const moveit::core::JointModel*, moveit::core::OrderJointByName> sorted_joint_models(j.getJointModels().begin(), j.getJointModels().end());
-
-//     for (moveit::core::LinkModel* link_model : sorted_link_models) {
-//       boost::hash_combine(h, std::hash<moveit::core::LinkModel>(link_model);
-//     }
-
-//     for (moveit::core::JointModel* joint_model : sorted_joint_models) {
-//       boost::hash_combine(h, std::hash<moveit::core::JointModel>(joint_model);
-//     }
-
-//     std::set<std::string> attached_end_effectors(j.getAttachedEndEffectorNames().begin(), j.getAttachedEndEffectorNames().end());
-//     for (auto &end_effector : attached_end_effectors) {
-//       boost::hash_combine(h, std::hash<std::string>{}(end_effector));
-//     }
-
-//     boost::hash_combine(h, std::hash<std::string>{}(j.getEndEffectorName()));
-//     boost::hash_combine(h, std::hash<bool>{}(j.isChain()));
-//     boost::hash_combine(h, std::hash<bool>{}(j.isSingleDOFJoints()));
-
-//     return h;
-
-//   }
-// };
+    return h;
+  }
+};

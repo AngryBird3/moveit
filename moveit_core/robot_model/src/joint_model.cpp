@@ -240,3 +240,71 @@ std::ostream& operator<<(std::ostream& out, const VariableBounds& b)
 
 }  // end of namespace core
 }  // end of namespace moveit
+
+std::size_t std::hash<moveit::core::JointModel>::operator()(const moveit::core::JointModel& joint) const noexcept
+{
+  std::size_t h =0;
+  // use Joint name_
+  boost::hash_combine(h, std::hash<std::string>{}(joint.getName()));
+  // use Joint type_: unknown/revolute/prismatic/planner/floating/fixed
+  // boost::hash_combine(h, std::hash<std::underlying_type<enum>::type>(joint.getType()));
+  boost::hash_combine(h, std::hash<std::string>{}(joint.getTypeName()));
+
+  // local_var_names: Do we want this for hash? Yep. This makes Index map in RobotModel
+  // See RobotModel::buildJointInfo
+  const auto local_variable_names = joint.getLocalVariableNames(); 
+  for (auto &local_var : local_variable_names) {
+    boost::hash_combine(h, std::hash<std::string>{}(local_var));
+  }
+  // Ignoring variable_names_
+
+  // use Joint variable bounds 
+  // //This is a vector of VariableBounds. They should be really Map<std::string, Bounds> where the key 
+  // should be local_var_names_. So instead of initializing two variables (variable_names_ and 
+  // variable_bounds_) I would just initialize this map. So no need for two loop to associate 
+  // variable_bounds_ from the JointLimit to variable_names_ and then assign limits to VariableBounds. 
+  // ANYHOW we don’t need to worry about the order of those, since the vector corresponds to the 
+  // local_variable_names_ index!
+  std::hash<moveit::core::VariableBounds> variable_bound_hash;
+  const auto variable_bounds = joint.getVariableBounds();
+  for (auto &var : variable_bounds) {
+    boost::hash_combine(h, variable_bound_hash(var));
+  }
+
+  // Ignoring JointLimits.msg
+  // Ignoring variable_index_map_
+
+  // use parent and child model links model
+  if (joint.getParentLinkModel()) {
+    boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*joint.getParentLinkModel()));
+  }
+  if (joint.getChildLinkModel()) {
+    boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*joint.getChildLinkModel()));
+  }
+  std::hash<moveit::core::JointModel> joint_model_hash;
+  if (joint.getMimic() != nullptr)
+    boost::hash_combine(h, joint_model_hash(*joint.getMimic()));
+  boost::hash_combine(h, std::hash<double>{}(joint.getMimicFactor()));
+  boost::hash_combine(h, std::hash<double>{}(joint.getMimicOffset()));
+  // Ignore mimic mimic_requests_
+
+  // All the links/joins which would move/not move with this Joint
+  const auto descendant_link_models_ = joint.getDescendantLinkModels();
+  for (auto &desc_link : descendant_link_models_) {
+    boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*desc_link));
+  }
+  const auto descendant_joint_models_ = joint.getDescendantJointModels();
+  for (auto &desc_joint : descendant_joint_models_) {
+    boost::hash_combine(h, joint_model_hash(*desc_joint));
+  }
+  const auto non_fixed_descendant_joint_models_ = joint.getNonFixedDescendantJointModels();
+  for (auto &non_fixed : non_fixed_descendant_joint_models_) {
+    boost::hash_combine(h, joint_model_hash(*non_fixed));
+  }
+
+  boost::hash_combine(h, std::hash<bool>{}(joint.isPassive()));
+  boost::hash_combine(h, std::hash<double>{}(joint.getDistanceFactor()));
+  boost::hash_combine(h, std::hash<int>{}(joint.getFirstVariableIndex()));
+  boost::hash_combine(h, std::hash<int>{}(joint.getJointIndex()));
+  return h;
+}

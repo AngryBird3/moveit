@@ -286,3 +286,11 @@ private:
 };
 }
 }
+
+namespace std
+{
+  template<>
+  struct hash<moveit::core::LinkModel> {
+    std::size_t operator()(const moveit::core::LinkModel&) const noexcept;
+  };
+}

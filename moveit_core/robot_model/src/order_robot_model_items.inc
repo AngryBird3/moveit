@@ -65,6 +65,22 @@ struct OrderGroupsByName
   }
 };
 
+struct OrderLinkByName
+{
+  bool operator()(const LinkModel *a, const LinkModel *b) const
+  {
+    return a->getName() < b->getName();
+  }
+};
+
+struct OrderJointByName
+{
+  bool operator()(const JointModel *a, const JointModel *b) const
+  {
+    return a->getName() < b->getName();
+  }
+};
+
 }
 }
 }
