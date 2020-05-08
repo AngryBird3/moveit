@@ -60,14 +60,9 @@ public:
   // Get thread-safe read-only lock of planning scene
   planning_scene_monitor::LockedPlanningSceneRO getLockedPlanningSceneRO() const;
 
-  void startMainLoop(moveit_jog_arm::JogArmShared& shared_variables, std::mutex& mutex);
-
-  void stopMainLoop();
+  void startMainLoop(moveit_jog_arm::JogArmShared& shared_variables);
 
 private:
-  // Loop termination flag
-  std::atomic<bool> stop_requested_;
-
   const moveit_jog_arm::JogArmParameters parameters_;
 
   // Pointer to the collision environment

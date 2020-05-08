@@ -141,7 +141,7 @@ public:
     }
 
     robot_model_loader::RobotModelLoader robot_model_loader(ROBOT_DESCRIPTION);
-    const robot_model::RobotModelPtr& robot_model = robot_model_loader.getModel();
+    const moveit::core::RobotModelPtr& robot_model = robot_model_loader.getModel();
     moveit::core::RobotState robot_state(robot_model);
     typedef std::map<std::string, double> JointPoseMap;
     JointPoseMap joints;
@@ -195,10 +195,10 @@ public:
     }
 
     // fill the joint state
-    for (JointPoseMap::const_iterator it = joints.begin(), end = joints.end(); it != end; ++it)
+    for (const auto& name_pos_pair : joints)
     {
-      js.name.push_back(it->first);
-      js.position.push_back(it->second);
+      js.name.push_back(name_pos_pair.first);
+      js.position.push_back(name_pos_pair.second);
     }
     return js;
   }

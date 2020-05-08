@@ -47,6 +47,10 @@
 namespace shapes
 {
 MOVEIT_CLASS_FORWARD(Shape);
+MOVEIT_CLASS_FORWARD(Box);
+MOVEIT_CLASS_FORWARD(Sphere);
+MOVEIT_CLASS_FORWARD(Cylinder);
+MOVEIT_CLASS_FORWARD(Mesh)
 }
 
 namespace moveit

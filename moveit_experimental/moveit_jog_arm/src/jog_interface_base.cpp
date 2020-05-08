@@ -88,13 +88,38 @@ bool JogInterfaceBase::readParameters(ros::NodeHandle& n)
                                     ros_parameters_.lower_singularity_threshold);
   error += !rosparam_shortcuts::get("", n, parameter_ns + "/hard_stop_singularity_threshold",
                                     ros_parameters_.hard_stop_singularity_threshold);
-  error += !rosparam_shortcuts::get("", n, parameter_ns + "/collision_proximity_threshold",
-                                    ros_parameters_.collision_proximity_threshold);
+  // parameter was removed, replaced with separate self- and scene-collision proximity thresholds; the logic handling
+  // the different possible sets of defined parameters is somewhat complicated at this point
+  // TODO(JStech): remove this deprecation warning in ROS Noetic; simplify error case handling
+  bool have_self_collision_proximity_threshold = rosparam_shortcuts::get(
+      "", n, parameter_ns + "/self_collision_proximity_threshold", ros_parameters_.self_collision_proximity_threshold);
+  bool have_scene_collision_proximity_threshold =
+      rosparam_shortcuts::get("", n, parameter_ns + "/scene_collision_proximity_threshold",
+                              ros_parameters_.scene_collision_proximity_threshold);
+  double collision_proximity_threshold;
+  if (n.hasParam(parameter_ns + "/collision_proximity_threshold") &&
+      rosparam_shortcuts::get("", n, parameter_ns + "/collision_proximity_threshold", collision_proximity_threshold))
+  {
+    ROS_WARN_NAMED(LOGNAME, "'collision_proximity_threshold' parameter is deprecated, and has been replaced by separate"
+                            "'self_collision_proximity_threshold' and 'scene_collision_proximity_threshold' "
+                            "parameters. Please update the jogging yaml file.");
+    if (!have_self_collision_proximity_threshold)
+    {
+      ros_parameters_.self_collision_proximity_threshold = collision_proximity_threshold;
+      have_self_collision_proximity_threshold = true;
+    }
+    if (!have_scene_collision_proximity_threshold)
+    {
+      ros_parameters_.scene_collision_proximity_threshold = collision_proximity_threshold;
+      have_scene_collision_proximity_threshold = true;
+    }
+  }
+  error += !have_self_collision_proximity_threshold;
+  error += !have_scene_collision_proximity_threshold;
   error += !rosparam_shortcuts::get("", n, parameter_ns + "/move_group_name", ros_parameters_.move_group_name);
   error += !rosparam_shortcuts::get("", n, parameter_ns + "/planning_frame", ros_parameters_.planning_frame);
   error += !rosparam_shortcuts::get("", n, parameter_ns + "/use_gazebo", ros_parameters_.use_gazebo);
   error += !rosparam_shortcuts::get("", n, parameter_ns + "/check_collisions", ros_parameters_.check_collisions);
-  error += !rosparam_shortcuts::get("", n, parameter_ns + "/warning_topic", ros_parameters_.warning_topic);
   error += !rosparam_shortcuts::get("", n, parameter_ns + "/joint_limit_margin", ros_parameters_.joint_limit_margin);
   error += !rosparam_shortcuts::get("", n, parameter_ns + "/command_out_topic", ros_parameters_.command_out_topic);
   error += !rosparam_shortcuts::get("", n, parameter_ns + "/command_out_type", ros_parameters_.command_out_type);
@@ -104,6 +129,16 @@ bool JogInterfaceBase::readParameters(ros::NodeHandle& n)
                                     ros_parameters_.publish_joint_velocities);
   error += !rosparam_shortcuts::get("", n, parameter_ns + "/publish_joint_accelerations",
                                     ros_parameters_.publish_joint_accelerations);
+
+  // This parameter name was changed recently.
+  // Try retrieving from the correct name. If it fails, then try the deprecated name.
+  // TODO(andyz): remove this deprecation warning in ROS Noetic
+  if (!rosparam_shortcuts::get("", n, parameter_ns + "/status_topic", ros_parameters_.status_topic))
+  {
+    ROS_WARN_NAMED(LOGNAME, "'status_topic' parameter is missing. Recently renamed from 'warning_topic'. Please update "
+                            "the jogging yaml file.");
+    error += !rosparam_shortcuts::get("", n, parameter_ns + "/warning_topic", ros_parameters_.status_topic);
+  }
 
   rosparam_shortcuts::shutdownIfError(parameter_ns, error);
 
@@ -134,11 +169,22 @@ bool JogInterfaceBase::readParameters(ros::NodeHandle& n)
                             "greater than zero. Check yaml file.");
     return false;
   }
-  if (ros_parameters_.collision_proximity_threshold < 0.)
+  if (ros_parameters_.self_collision_proximity_threshold < 0.)
   {
-    ROS_WARN_NAMED(LOGNAME, "Parameter 'collision_proximity_threshold' should be "
+    ROS_WARN_NAMED(LOGNAME, "Parameter 'self_collision_proximity_threshold' should be "
                             "greater than zero. Check yaml file.");
     return false;
+  }
+  if (ros_parameters_.scene_collision_proximity_threshold < 0.)
+  {
+    ROS_WARN_NAMED(LOGNAME, "Parameter 'scene_collision_proximity_threshold' should be "
+                            "greater than zero. Check yaml file.");
+    return false;
+  }
+  if (ros_parameters_.scene_collision_proximity_threshold < ros_parameters_.self_collision_proximity_threshold)
+  {
+    ROS_WARN_NAMED(LOGNAME, "Parameter 'self_collision_proximity_threshold' should probably be less "
+                            "than or equal to 'scene_collision_proximity_threshold'. Check yaml file.");
   }
   if (ros_parameters_.low_pass_filter_coeff < 0.)
   {
@@ -195,8 +241,9 @@ bool JogInterfaceBase::readParameters(ros::NodeHandle& n)
 // Listen to joint angles. Store them in a shared variable.
 void JogInterfaceBase::jointsCB(const sensor_msgs::JointStateConstPtr& msg)
 {
-  const std::lock_guard<std::mutex> lock(shared_variables_mutex_);
+  shared_variables_.lock();
   shared_variables_.joints = *msg;
+  shared_variables_.unlock();
 }
 
 bool JogInterfaceBase::changeDriftDimensions(moveit_msgs::ChangeDriftDimensions::Request& req,
@@ -220,17 +267,13 @@ bool JogInterfaceBase::startJogCalcThread()
   if (!jog_calcs_)
     jog_calcs_.reset(new JogCalcs(ros_parameters_, planning_scene_monitor_->getRobotModelLoader()));
 
-  jog_calc_thread_.reset(
-      new std::thread([&]() { jog_calcs_->startMainLoop(shared_variables_, shared_variables_mutex_); }));
+  jog_calc_thread_.reset(new std::thread([&]() { jog_calcs_->startMainLoop(shared_variables_); }));
 
   return true;
 }
 
 bool JogInterfaceBase::stopJogCalcThread()
 {
-  if (jog_calcs_)
-    jog_calcs_->stopMainLoop();
-
   if (jog_calc_thread_)
   {
     if (jog_calc_thread_->joinable())
@@ -248,17 +291,13 @@ bool JogInterfaceBase::startCollisionCheckThread()
   if (!collision_checker_)
     collision_checker_.reset(new CollisionCheckThread(ros_parameters_, planning_scene_monitor_));
 
-  collision_check_thread_.reset(
-      new std::thread([&]() { collision_checker_->startMainLoop(shared_variables_, shared_variables_mutex_); }));
+  collision_check_thread_.reset(new std::thread([&]() { collision_checker_->startMainLoop(shared_variables_); }));
 
   return true;
 }
 
 bool JogInterfaceBase::stopCollisionCheckThread()
 {
-  if (collision_checker_)
-    collision_checker_->stopMainLoop();
-
   if (collision_check_thread_)
   {
     if (collision_check_thread_->joinable())

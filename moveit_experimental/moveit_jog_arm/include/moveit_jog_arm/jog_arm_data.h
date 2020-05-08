@@ -38,18 +38,27 @@
 
 #pragma once
 
-#include <control_msgs/JointJog.h>
-#include <Eigen/Geometry>
-#include <geometry_msgs/TwistStamped.h>
+// System
 #include <mutex>
-#include <sensor_msgs/JointState.h>
 #include <thread>
+
+// Eigen
+#include <Eigen/Geometry>
+
+// ROS
+#include <control_msgs/JointJog.h>
+#include <geometry_msgs/TwistStamped.h>
+#include <sensor_msgs/JointState.h>
 #include <trajectory_msgs/JointTrajectory.h>
+
+// moveit_jog_arm
+#include "status_codes.h"
 
 namespace moveit_jog_arm
 {
 // Variables to share between threads, and their mutexes
-struct JogArmShared
+// Inherit from a mutex so the struct can be locked/unlocked easily
+struct JogArmShared : public std::mutex
 {
   geometry_msgs::TwistStamped command_deltas;
 
@@ -59,11 +68,11 @@ struct JogArmShared
 
   double collision_velocity_scale = 1;
 
-  // Indicates that an incoming Cartesian command is all zero velocities
-  bool zero_cartesian_cmd_flag = true;
+  // Flag a valid incoming Cartesian command having nonzero velocities
+  bool have_nonzero_cartesian_cmd = false;
 
-  // Indicates that an incoming joint angle command is all zero velocities
-  bool zero_joint_cmd_flag = true;
+  // Flag a valid incoming joint angle command having nonzero velocities
+  bool have_nonzero_joint_cmd = false;
 
   // Indicates that we have not received a new command in some time
   bool command_is_stale = false;
@@ -83,6 +92,15 @@ struct JogArmShared
   // True -> allow drift in this dimension. In the command frame. [x, y, z, roll, pitch, yaw]
   std::atomic_bool drift_dimensions[6] = { ATOMIC_VAR_INIT(false), ATOMIC_VAR_INIT(false), ATOMIC_VAR_INIT(false),
                                            ATOMIC_VAR_INIT(false), ATOMIC_VAR_INIT(false), ATOMIC_VAR_INIT(false) };
+
+  // Status of the jogger. 0 for no warning. The meaning of nonzero values can be seen in status_codes.h
+  std::atomic<StatusCode> status;
+
+  // Pause/unpause jog threads - threads are not paused by default
+  std::atomic<bool> paused{ false };
+
+  // Stop jog loop threads - threads are not stopped by default
+  std::atomic<bool> stop_requested{ false };
 };
 
 // ROS params to be read. See the yaml file in /config for a description of each.
@@ -94,7 +112,7 @@ struct JogArmParameters
   std::string robot_link_command_frame;
   std::string command_out_topic;
   std::string planning_frame;
-  std::string warning_topic;
+  std::string status_topic;
   std::string joint_command_in_topic;
   std::string command_in_type;
   std::string command_out_type;
@@ -103,7 +121,8 @@ struct JogArmParameters
   double joint_scale;
   double lower_singularity_threshold;
   double hard_stop_singularity_threshold;
-  double collision_proximity_threshold;
+  double scene_collision_proximity_threshold;
+  double self_collision_proximity_threshold;
   double low_pass_filter_coeff;
   double publish_period;
   double incoming_command_timeout;

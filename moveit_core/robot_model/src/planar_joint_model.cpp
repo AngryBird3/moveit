@@ -37,6 +37,7 @@
 
 #include <moveit/robot_model/planar_joint_model.h>
 #include <boost/math/constants/constants.hpp>
+#include <boost/functional/hash.hpp>
 #include <limits>
 #include <cmath>
 
@@ -255,3 +256,16 @@ namespace std
 
 }  // end of namespace core
 }  // end of namespace moveit
+
+template<> struct std::hash<moveit::core::PlanarJointModel> 
+{
+  std::size_t operator()(moveit::core::PlanarJointModel const& joint) const noexcept
+  {
+    std::size_t h =0;
+    // std::hash<moveit::core::JointModel> joint_model_hash;
+    boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(joint));
+    boost::hash_combine(h, std::hash<double>{}(joint.getAngularDistanceWeight()));
+
+    return h;
+  }
+};

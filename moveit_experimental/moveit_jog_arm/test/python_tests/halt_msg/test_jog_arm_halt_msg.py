@@ -6,20 +6,26 @@ import rospy
 from geometry_msgs.msg import TwistStamped
 
 from control_msgs.msg import JointJog
-from std_msgs.msg import Bool
+from std_msgs.msg import Int8
+
+# Import common Python test utilities
+from os import sys, path
+sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+import util
 
 # The robot starts at a singular position (see config file).
-# Listen for a halt message from the jogger.
+# The jogger should halt and publish a warning.
+# Listen for a warning message from the jogger.
 # This can be run as part of a pytest, or like a normal ROS executable:
-# rosrun moveit_jog_arm test_jog_arm_integration.py
-
-JOG_ARM_SETTLE_TIME_S = 10
-ROS_SETTLE_TIME_S = 10
+# rosrun moveit_jog_arm test_jog_arm_halt_msg.py
 
 CARTESIAN_JOG_COMMAND_TOPIC = 'jog_server/delta_jog_cmds'
 
-# jog_arm should publish 'true' here if it halts
-HALT_TOPIC = 'jog_server/halted'
+# jog_arm should publish a nonzero warning code here
+HALT_TOPIC = 'jog_server/status'
+
+# Check if jogger is initialized with this service
+SERVICE_NAME = 'jog_server/change_drift_dimensions'
 
 
 @pytest.fixture
@@ -42,25 +48,27 @@ class CartesianJogCmd(object):
 
 
 def test_jog_arm_halt_msg(node):
+    assert util.wait_for_jogger_initialization(SERVICE_NAME)
+
+    received = []
     sub = rospy.Subscriber(
-        HALT_TOPIC, Bool, lambda msg: received.append(msg)
+        HALT_TOPIC, Int8, lambda msg: received.append(msg)
     )
     cartesian_cmd = CartesianJogCmd()
-    time.sleep(ROS_SETTLE_TIME_S)  # wait for pub/subs to settle
-    time.sleep(JOG_ARM_SETTLE_TIME_S)  # wait for jog_arm server to init
 
     # This nonzero command should produce jogging output
     # A subscriber in a different thread fills `received`
     TEST_DURATION = 1
-    received = []
     start_time = rospy.get_rostime()
+    received = []
     while (rospy.get_rostime() - start_time).to_sec() < TEST_DURATION:
-        cartesian_cmd.send_cmd([0, 0, 0], [0, 0, 1])
+        cartesian_cmd.send_cmd([1, 1, 1], [0, 0, 1])
         time.sleep(0.1)
 
     # Check the received messages
-    assert len(received) > 1
-    assert received[-1].data == True
+    # A non-zero value signifies a warning
+    assert len(received) > 3
+    assert (received[-1].data != 0) or (received[-2].data != 0) or (received[-3].data != 0)
 
 
 if __name__ == '__main__':

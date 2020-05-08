@@ -36,7 +36,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#include <moveit_jog_arm/jog_cpp_interface.h>
+#include "moveit_jog_arm/jog_cpp_interface.h"
+#include "moveit_jog_arm/status_codes.h"
 
 static const std::string LOGNAME = "cpp_interface_example";
 
@@ -66,7 +67,7 @@ int main(int argc, char** argv)
   planning_scene_monitor->startStateMonitor();
 
   // Run the jogging C++ interface in a new thread to ensure a constant outgoing message rate.
-  moveit_jog_arm::JogCppApi jog_interface(planning_scene_monitor);
+  moveit_jog_arm::JogCppInterface jog_interface(planning_scene_monitor);
   std::thread jogging_thread([&]() { jog_interface.startMainLoop(); });
 
   // Make a Cartesian velocity message
@@ -109,7 +110,12 @@ int main(int argc, char** argv)
 
   // Retrieve the current joint state from the jogger
   sensor_msgs::JointState current_joint_state = jog_interface.getJointState();
-  ROS_INFO_STREAM(current_joint_state);
+  ROS_INFO_STREAM_NAMED(LOGNAME, "Current joint state:");
+  ROS_INFO_STREAM_NAMED(LOGNAME, current_joint_state);
+
+  // Retrieve the current status of the jogger
+  moveit_jog_arm::StatusCode status = jog_interface.getJoggerStatus();
+  ROS_INFO_STREAM_NAMED(LOGNAME, "Jogger status:\n" << status);
 
   jog_interface.stopMainLoop();
   jogging_thread.join();

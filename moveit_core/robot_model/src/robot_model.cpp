@@ -355,7 +355,18 @@ void RobotModel::buildGroupStates(const srdf::Model& srdf_model)
                           group_state.name_.c_str(), jt->first.c_str(), jmg->getName().c_str());
       }
       if (!remaining_joints.empty())
-        ROS_WARN_NAMED(LOGNAME, "Group state '%s' doesn't specify all group joints.", group_state.name_.c_str());
+      {
+        std::stringstream missing;
+        missing << (*remaining_joints.begin())->getName();
+        for (auto j = ++remaining_joints.begin(); j != remaining_joints.end(); j++)
+        {
+          missing << ", " << (*j)->getName();
+        }
+        ROS_WARN_STREAM_NAMED(LOGNAME, "Group state '" << group_state.name_
+                                                       << "' doesn't specify all group joints in group '"
+                                                       << group_state.group_ << "'. " << missing.str() << " "
+                                                       << (remaining_joints.size() > 1 ? "are" : "is") << " missing.");
+      }
       if (!state.empty())
         jmg->addDefaultState(group_state.name_, state);
     }
@@ -979,6 +990,7 @@ LinkModel* RobotModel::constructLinkModel(const urdf::Link* urdf_link)
   EigenSTL::vector_Isometry3d poses;
 
   for (const urdf::CollisionSharedPtr& col : col_array)
+  {
     if (col && col->geometry)
     {
       shapes::ShapeConstPtr s = constructShape(col->geometry.get());
@@ -988,21 +1000,27 @@ LinkModel* RobotModel::constructLinkModel(const urdf::Link* urdf_link)
         poses.push_back(urdfPose2Isometry3d(col->origin));
       }
     }
+  }
+
+  // Should we warn that old (melodic) behaviour has changed, not copying visual to collision geometries anymore?
+  bool warn_about_missing_collision = false;
   if (shapes.empty())
   {
-    const std::vector<urdf::VisualSharedPtr>& vis_array = urdf_link->visual_array.empty() ?
-                                                              std::vector<urdf::VisualSharedPtr>(1, urdf_link->visual) :
+    const auto& vis_array = urdf_link->visual_array.empty() ? std::vector<urdf::VisualSharedPtr>{ urdf_link->visual } :
                                                               urdf_link->visual_array;
     for (const urdf::VisualSharedPtr& vis : vis_array)
+    {
       if (vis && vis->geometry)
-      {
-        shapes::ShapeConstPtr s = constructShape(vis->geometry.get());
-        if (s)
-        {
-          shapes.push_back(s);
-          poses.push_back(urdfPose2Isometry3d(vis->origin));
-        }
-      }
+        warn_about_missing_collision = true;
+    }
+  }
+  if (warn_about_missing_collision)
+  {
+    ROS_WARN_STREAM_NAMED(LOGNAME + ".empty_collision_geometry",
+                          "Link " << urdf_link->name
+                                  << " has visual geometry but no collision geometry. "
+                                     "Collision geometry will be left empty. "
+                                     "Fix your URDF file by explicitly specifying collision geometry.");
   }
 
   new_link_model->setGeometry(shapes, poses);
@@ -1149,10 +1167,10 @@ const LinkModel* RobotModel::getRigidlyConnectedParentLinkModel(const LinkModel*
 {
   if (!link)
     return link;
-  const robot_model::LinkModel* parent_link = link->getParentLinkModel();
-  const robot_model::JointModel* joint = link->getParentJointModel();
+  const moveit::core::LinkModel* parent_link = link->getParentLinkModel();
+  const moveit::core::JointModel* joint = link->getParentJointModel();
 
-  while (parent_link && joint->getType() == robot_model::JointModel::FIXED)
+  while (parent_link && joint->getType() == moveit::core::JointModel::FIXED)
   {
     link = parent_link;
     joint = link->getParentJointModel();
@@ -1455,3 +1473,74 @@ namespace std
 
 }  // end of namespace core
 }  // end of namespace moveit
+
+// template<> struct std::hash<moveit::core::RobotModel>
+// {
+//   std::size_t operator()(moveit::core::RobotModel const& r) const noexcept 
+//   {
+//     std::size_t h =0;
+//     boost::hash_combine(h, r.getName()); 
+//     boost::hash_combine(h, r.getModelFrame());
+
+
+//     /**
+//       * RobotModel consists of 2: Joint and Link
+//       * Additionally it has 1) Indexing for Joint and Link 2) Groups
+//       * Groups would be needed for EndEffectors and Planning groups which comes from SRDF
+//       */
+//     std::set<const moveit::core::LinkModel*, moveit::core::OrderLinkByName> sorted_link_models(r.getLinkModels().begin(), r.getLinkModels.end());
+//     std::set<const moveit::core::JointModel*, moveit::core::OrderJointByName> sorted_joint_models(r.joint_model_vector.begin(), r.joint_model_vector.end());
+
+//     for (moveit::core::LinkModel* link_model : sorted_link_models) {
+//       boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link_model));
+//     }
+
+//     for (moveit::core::JointModel* joint_model : sorted_joint_models) {
+//       boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*joint_model));
+//     }
+
+//     auto joint_model_vectors = r.getJointModelGroups();
+//     for (const moveit::core::JointModelGroup* group: joint_model_groups) {
+//       boost::hash_combine(h, std::hash<moveit::core::JointModelGroup>{}(*group));
+//     }
+
+//     return h;
+//   }
+// };
+
+// template<> struct std::hash<moveit::core::JointModelGroup>
+// {
+//   std::size_t operator()(moveit::core::JointModelGroup const& j) const noexcept
+//   {
+//     std::size_t h = 0;
+//     boost::hash_combine(h, j.name_);
+
+//     // JointModelGroup contains Link and Joint model different from the RobotModel joint/link_model_Vector_
+//     // JointModelGroup uses srdf::model::Group and srdf::model::EndEffector to construct JointModelGroup
+//     // joints and links.
+//     // The RobotModel joints/link_model_vector_ uses URDF mainly and also srdf::model::VirtualJoints
+
+//     std::set<const moveit::core::LinkModel*, moveit::core::OrderLinkByName> sorted_link_models(j.getLinkModels().begin(), j.getLinkModels().end());
+//     std::set<const moveit::core::JointModel*, moveit::core::OrderJointByName> sorted_joint_models(j.getJointModels().begin(), j.getJointModels().end());
+
+//     for (moveit::core::LinkModel* link_model : sorted_link_models) {
+//       boost::hash_combine(h, std::hash<moveit::core::LinkModel>(link_model);
+//     }
+
+//     for (moveit::core::JointModel* joint_model : sorted_joint_models) {
+//       boost::hash_combine(h, std::hash<moveit::core::JointModel>(joint_model);
+//     }
+
+//     std::set<std::string> attached_end_effectors(j.getAttachedEndEffectorNames().begin(), j.getAttachedEndEffectorNames().end());
+//     for (auto &end_effector : attached_end_effectors) {
+//       boost::hash_combine(h, std::hash<std::string>{}(end_effector));
+//     }
+
+//     boost::hash_combine(h, std::hash<std::string>{}(j.getEndEffectorName()));
+//     boost::hash_combine(h, std::hash<bool>{}(j.isChain()));
+//     boost::hash_combine(h, std::hash<bool>{}(j.isSingleDOFJoints()));
+
+//     return h;
+
+//   }
+// };

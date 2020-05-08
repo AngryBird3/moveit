@@ -40,33 +40,42 @@
 
 #include <atomic>
 #include "jog_interface_base.h"
+#include <std_msgs/Int8.h>
 
 namespace moveit_jog_arm
 {
 /**
-* Class JogCppApi - This class should be instantiated in a new thread
+* Class JogCppInterface - This class should be instantiated in a new thread
 * See cpp_interface_example.cpp
 */
-class JogCppApi : protected JogInterfaceBase
+class JogCppInterface : public JogInterfaceBase
 {
 public:
-  JogCppApi(const planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor);
+  JogCppInterface(const planning_scene_monitor::PlanningSceneMonitorPtr& planning_scene_monitor);
 
-  ~JogCppApi();
+  ~JogCppInterface();
 
   void startMainLoop();
 
   void stopMainLoop();
 
-  // Provide a Cartesian velocity command to the jogger.
-  // The units are determined by settings in the yaml file.
+  /** \brief Pause or unpause processing jog commands while keeping the main loop alive */
+  void setPaused(bool paused);
+
+  /** \brief Provide a Cartesian velocity command to the jogger.
+   * The units are determined by settings in the yaml file.
+   */
   void provideTwistStampedCommand(const geometry_msgs::TwistStamped& velocity_command);
 
-  // Send joint position(s) commands
+  /** \brief Send joint position(s) commands */
   void provideJointCommand(const control_msgs::JointJog& joint_command);
 
-  // Returns the most recent JointState that the jogger has received.
-  // May eliminate the need to create your own joint_state subscriber.
+  /**
+   * Returns the most recent JointState that the jogger has received.
+   * May eliminate the need to create your own joint_state subscriber.
+   *
+   * @return the most recent joints known to the jogger
+   */
   sensor_msgs::JointState getJointState();
 
   /**
@@ -78,9 +87,14 @@ public:
    */
   bool getCommandFrameTransform(Eigen::Isometry3d& transform);
 
+  /**
+   * Get the status of the jogger.
+   *
+   * @return 0 for no warning. The meaning of nonzero values can be seen in status_codes.h
+   */
+  StatusCode getJoggerStatus();
+
 private:
   ros::NodeHandle nh_;
-
-  std::atomic<bool> stop_requested_;
 };
 }  // namespace moveit_jog_arm

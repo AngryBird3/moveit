@@ -63,16 +63,18 @@ catkin_package(
     moveit_planning_scene_interface
     moveit_move_group_interface
     moveit_cpp
+    moveit_py_bindings_tools
   INCLUDE_DIRS
     ${THIS_PACKAGE_INCLUDE_DIRS}
   CATKIN_DEPENDS
     actionlib
+    geometry_msgs
+    moveit_msgs
     moveit_ros_planning
     moveit_ros_warehouse
     moveit_ros_manipulation
     moveit_ros_move_group
-    geometry_msgs
-    moveit_msgs
+    roscpp
     tf2_geometry_msgs
   DEPENDS
     EIGEN3
