@@ -620,3 +620,12 @@ protected:
 
 namespace robot_model = moveit::core;
 namespace robot_state = moveit::core;
+
+namespace std
+{
+  template<> 
+  struct hash<moveit::core::RobotModel>
+  {
+    std::size_t operator()(moveit::core::RobotModel const& j) const noexcept;
+  };
+}

@@ -277,3 +277,12 @@ void RevoluteJointModel::computeVariablePositions(const Eigen::Isometry3d& trans
 
 }  // end of namespace core
 }  // end of namespace moveit
+
+std::size_t std::hash<moveit::core::RevoluteJointModel>::operator()(moveit::core::RevoluteJointModel const& joint) const noexcept
+{
+  std::size_t h =0;
+  boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(joint.getAxis()));
+  boost::hash_combine(h, std::hash<bool>{}(joint.isContinuous()));
+
+  return h;
+}

@@ -60,8 +60,16 @@ protected:
 
 TEST_F(LoadPlanningModelsPr2, InitOK)
 {
-  ASSERT_EQ(robot_model_->getURDF()->getName(), "pr2");
-  ASSERT_EQ(robot_model_->getSRDF()->getName(), "pr2");
+  ASSERT_EQ(robot_model_->getURDF()->getName(), "pr22");
+  ASSERT_EQ(robot_model_->getSRDF()->getName(), "pr22");
+}
+
+TEST_F(LoadPlanningModelsPr2, RobotModelHash)
+{
+  // robot_model_->printModelInfo(std::cout);
+  size_t h = std::hash<moveit::core::RobotModel>{}(*(robot_model_.get()));
+  std::cout << "[DHARA_DEBUG] Robot mpdel Hash: " << h << "\n";
+  ASSERT_EQ(2, 100); //Well just to see if it is running
 }
 
 TEST_F(LoadPlanningModelsPr2, Model)

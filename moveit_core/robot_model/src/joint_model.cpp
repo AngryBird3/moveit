@@ -241,7 +241,7 @@ std::ostream& operator<<(std::ostream& out, const VariableBounds& b)
 }  // end of namespace core
 }  // end of namespace moveit
 
-std::size_t std::hash<moveit::core::JointModel>::operator()(const moveit::core::JointModel& joint) const noexcept
+std::size_t std::hash<moveit::core::JointModel>::operator()(moveit::core::JointModel const& joint) const noexcept
 {
   std::size_t h =0;
   // use Joint name_
@@ -281,30 +281,59 @@ std::size_t std::hash<moveit::core::JointModel>::operator()(const moveit::core::
   if (joint.getChildLinkModel()) {
     boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*joint.getChildLinkModel()));
   }
-  std::hash<moveit::core::JointModel> joint_model_hash;
-  if (joint.getMimic() != nullptr)
-    boost::hash_combine(h, joint_model_hash(*joint.getMimic()));
+  // std::hash<moveit::core::JointModel> joint_model_hash;
+  // if (joint.getMimic() != nullptr)
+  //   boost::hash_combine(h, joint_model_hash(*joint.getMimic()));
   boost::hash_combine(h, std::hash<double>{}(joint.getMimicFactor()));
   boost::hash_combine(h, std::hash<double>{}(joint.getMimicOffset()));
   // Ignore mimic mimic_requests_
 
-  // All the links/joins which would move/not move with this Joint
-  const auto descendant_link_models_ = joint.getDescendantLinkModels();
-  for (auto &desc_link : descendant_link_models_) {
-    boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*desc_link));
-  }
-  const auto descendant_joint_models_ = joint.getDescendantJointModels();
-  for (auto &desc_joint : descendant_joint_models_) {
-    boost::hash_combine(h, joint_model_hash(*desc_joint));
-  }
-  const auto non_fixed_descendant_joint_models_ = joint.getNonFixedDescendantJointModels();
-  for (auto &non_fixed : non_fixed_descendant_joint_models_) {
-    boost::hash_combine(h, joint_model_hash(*non_fixed));
-  }
+  // // All the links/joins which would move/not move with this Joint
+  // const auto descendant_link_models_ = joint.getDescendantLinkModels();
+  // for (auto &desc_link : descendant_link_models_) {
+  //   boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*desc_link));
+  // }
+  // const auto descendant_joint_models_ = joint.getDescendantJointModels();
+  // for (auto &desc_joint : descendant_joint_models_) {
+  //   boost::hash_combine(h, joint_model_hash(*desc_joint));
+  // }
+  // const auto non_fixed_descendant_joint_models_ = joint.getNonFixedDescendantJointModels();
+  // for (auto &non_fixed : non_fixed_descendant_joint_models_) {
+  //   boost::hash_combine(h, joint_model_hash(*non_fixed));
+  // }
 
   boost::hash_combine(h, std::hash<bool>{}(joint.isPassive()));
   boost::hash_combine(h, std::hash<double>{}(joint.getDistanceFactor()));
   boost::hash_combine(h, std::hash<int>{}(joint.getFirstVariableIndex()));
   boost::hash_combine(h, std::hash<int>{}(joint.getJointIndex()));
+
+  // Get child class' hash too
+  // switch (joint.getType())
+  // {
+  //   case moveit::core::JointModel::PLANAR:
+  //     auto pl = dynamic_cast<const moveit::core::PlanarJointModel&>(joint);
+  //     boost::hash_combine(h, std::hash<const moveit::core::PlanarJointModel&>{}(pl));
+  //   case moveit::core::JointModel::PRISMATIC:
+  //     auto pr = dynamic_cast<const moveit::core::PrismaticJointModel&>(joint);
+  //     boost::hash_combine(h, std::hash<moveit::core::PrismaticJointModel>{}(pr));
+  //   case moveit::core::JointModel::FLOATING:
+  //     auto fl = dynamic_cast<const moveit::core::FloatingJointModel&>(joint);
+  //     boost::hash_combine(h, std::hash<moveit::core::FloatingJointModel>{}(fl));
+  //   case moveit::core::JointModel::REVOLUTE:
+  //     auto r = dynamic_cast<const moveit::core::RevoluteJointModel&>(joint);
+  //     boost::hash_combine(h, std::hash<moveit::core::RevoluteJointModel>{}(r));
+  // } 
+
+
   return h;
 }
+
+  std::size_t std::hash<Eigen::Vector3d>::operator()(const Eigen::Vector3d& v) const noexcept
+  {
+      std::size_t h = 0;
+      for (auto i = 0; i < 3; i++) 
+      {
+        boost::hash_combine(h, std::hash<double>{}(v(i,0)));
+      }
+      return h;
+  }

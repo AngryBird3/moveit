@@ -240,14 +240,10 @@ void PlanarJointModel::computeVariablePositions(const Eigen::Isometry3d& transf,
 }  // end of namespace core
 }  // end of namespace moveit
 
-template<> struct std::hash<moveit::core::PlanarJointModel> 
+std::size_t std::hash<moveit::core::PlanarJointModel>::operator()(moveit::core::PlanarJointModel const& joint) const noexcept
 {
-  std::size_t operator()(moveit::core::PlanarJointModel const& joint) const noexcept
-  {
-    std::size_t h =0;
-    boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(joint));
-    boost::hash_combine(h, std::hash<double>{}(joint.getAngularDistanceWeight()));
+  std::size_t h =0;
+  boost::hash_combine(h, std::hash<double>{}(joint.getAngularDistanceWeight()));
 
-    return h;
-  }
-};
+  return h;
+}

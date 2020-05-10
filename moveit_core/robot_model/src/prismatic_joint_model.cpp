@@ -151,14 +151,10 @@ void PrismaticJointModel::computeVariablePositions(const Eigen::Isometry3d& tran
 }  // end of namespace core
 }  // end of namespace moveit
 
-template<> struct std::hash<moveit::core::PrismaticJointModel> 
+std::size_t std::hash<moveit::core::PrismaticJointModel>::operator()(moveit::core::PrismaticJointModel const& joint) const noexcept
 {
-  std::size_t operator()(moveit::core::PrismaticJointModel const& joint) const noexcept
-  {
-    std::size_t h =0;
-    boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(joint));
-    // TODO 
-    // boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(joint.getAxis));
-    return h;
-  }
-};
+  std::size_t h =0;
+  // TODO 
+  boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(joint.getAxis()));
+  return h;
+}

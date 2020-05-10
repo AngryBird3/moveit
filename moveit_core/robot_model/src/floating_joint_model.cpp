@@ -343,3 +343,11 @@ void FloatingJointModel::getVariableRandomPositionsNearBy(random_numbers::Random
 
 }  // end of namespace core
 }  // end of namespace moveit
+
+std::size_t std::hash<moveit::core::FloatingJointModel>::operator()(moveit::core::FloatingJointModel const& joint) const noexcept
+{
+  std::size_t h =0;
+  boost::hash_combine(h, std::hash<double>{}(joint.getAngularDistanceWeight()));
+
+  return h;
+}

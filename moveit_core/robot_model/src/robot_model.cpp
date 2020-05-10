@@ -1429,36 +1429,33 @@ void RobotModel::computeFixedTransforms(const LinkModel* link, const Eigen::Isom
 }  // end of namespace core
 }  // end of namespace moveit
 
-template<> struct std::hash<moveit::core::RobotModel>
+std::size_t std::hash<moveit::core::RobotModel>::operator()(moveit::core::RobotModel const& r) const noexcept 
 {
-  std::size_t operator()(moveit::core::RobotModel const& r) const noexcept 
-  {
-    std::size_t h =0;
-    boost::hash_combine(h, r.getName()); 
-    boost::hash_combine(h, r.getModelFrame());
+  std::size_t h =0;
+  boost::hash_combine(h, r.getName()); 
+  boost::hash_combine(h, r.getModelFrame());
 
 
-    /**
-      * RobotModel consists of 2: Joint and Link
-      * Additionally it has 1) Indexing for Joint and Link 2) Groups
-      * Groups would be needed for EndEffectors and Planning groups which comes from SRDF
-      */
-    std::set<const moveit::core::LinkModel*, moveit::core::OrderLinkByName> sorted_link_models(r.getLinkModels().begin(), r.getLinkModels().end());
-    std::set<const moveit::core::JointModel*, moveit::core::OrderJointByName> sorted_joint_models(r.getJointModels().begin(), r.getJointModels().end());
+  /**
+    * RobotModel consists of 2: Joint and Link
+    * Additionally it has 1) Indexing for Joint and Link 2) Groups
+    * Groups would be needed for EndEffectors and Planning groups which comes from SRDF
+    */
+  std::set<const moveit::core::LinkModel*, moveit::core::OrderLinkByName> sorted_link_models(r.getLinkModels().begin(), r.getLinkModels().end());
+  std::set<const moveit::core::JointModel*, moveit::core::OrderJointByName> sorted_joint_models(r.getJointModels().begin(), r.getJointModels().end());
 
-    for (auto link_model : sorted_link_models) {
-      boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link_model));
-    }
-
-    for (auto joint_model : sorted_joint_models) {
-      boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*joint_model));
-    }
-
-    auto joint_model_groups = r.getJointModelGroups();
-    for (auto group: joint_model_groups) {
-      boost::hash_combine(h, std::hash<moveit::core::JointModelGroup>{}(*group));
-    }
-
-    return h;
+  for (auto link_model : sorted_link_models) {
+    boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link_model));
   }
-};
+
+  for (auto joint_model : sorted_joint_models) {
+    boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*joint_model));
+  }
+
+  auto joint_model_groups = r.getJointModelGroups();
+  for (auto group: joint_model_groups) {
+    boost::hash_combine(h, std::hash<moveit::core::JointModelGroup>{}(*group));
+  }
+
+  return h;
+}

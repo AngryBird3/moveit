@@ -81,6 +81,10 @@ struct VariableBounds
 
 class LinkModel;
 class JointModel;
+class PrismaticJointModel;
+class FloatingJointModel;
+class RevoluteJointModel;
+class PlanarJointModel; 
 
 /** \brief Data type for holding mappings from variable names to their position in a state vector */
 typedef std::map<std::string, int> VariableIndexMap;
@@ -550,7 +554,30 @@ namespace std
 {
   template<>
   struct hash<moveit::core::JointModel> {
-    virtual std::size_t operator()(const moveit::core::JointModel&) const noexcept;
+   std::size_t operator()(const moveit::core::JointModel&) const noexcept;
+  };
+  template<>
+  struct hash<moveit::core::FloatingJointModel> {
+   std::size_t operator()(const moveit::core::FloatingJointModel&) const noexcept;
+  };
+  template<>
+  struct hash<moveit::core::PlanarJointModel> {
+   std::size_t operator()(const moveit::core::PlanarJointModel&) const noexcept;
+  };
+  template<>
+  struct hash<moveit::core::PrismaticJointModel> {
+   std::size_t operator()(const moveit::core::PrismaticJointModel&) const noexcept;
+  };
+  template<>
+  struct hash<moveit::core::RevoluteJointModel> {
+   std::size_t operator()(const moveit::core::RevoluteJointModel&) const noexcept;
   };
 }
 
+
+  // Eigen Vector3d
+  template<>
+  struct std::hash<Eigen::Vector3d>
+  {
+   std::size_t operator()(const Eigen::Vector3d&) const noexcept;
+  };

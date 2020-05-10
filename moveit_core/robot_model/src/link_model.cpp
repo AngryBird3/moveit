@@ -145,38 +145,7 @@ void LinkModel::setVisualMesh(const std::string& visual_mesh, const Eigen::Isome
     }
   };
 
-  // Eigen Vector3d
-  template<>
-  struct std::hash<Eigen::Vector3d>
-  {
-    std::size_t operator()(const Eigen::Vector3d& v) const 
-    {
-        std::size_t h = 0;
-        for (auto i = 0; i < 3; i++) 
-        {
-          boost::hash_combine(h, std::hash<double>{}(v(i,0)));
-        }
-        return h;
-    }
-  };
-
   // ROS Shapes
-  template<>
-  struct std::hash<shapes::Shape>
-  {
-    const std::string LOGNAME = "link_model";
-    virtual std::size_t operator()(const shapes::Shape &shape) const
-    {
-     // 1. I can make it pure virtual but then Plane/Octree needs to
-     //    implement this. But Octee doesn't seem easy and since we
-     //    don't use it in urdf, I don't feel like going with tihs
-     //    route
-     // 2. Throw exception
-     // 3. Return some random num
-    throw moveit::ConstructException("... we're using Shape (base) class implementation for hash");
-    }
-  };
-
   template<> 
   struct std::hash<shapes::Box>
   {
@@ -239,13 +208,43 @@ void LinkModel::setVisualMesh(const std::string& visual_mesh, const Eigen::Isome
     }
   };
 
+  template<>
+  struct std::hash<shapes::Shape>
+  {
+    const std::string LOGNAME = "link_model";
+    std::size_t operator()(const shapes::Shape &shape) const
+    {
+      switch (shape.type)
+      {
+        case shapes::BOX:
+        {
+          return std::hash<shapes::Box>{}(static_cast<const shapes::Box&>(shape));
+        }
+        case shapes::CYLINDER:
+        {
+          return std::hash<shapes::Cylinder>{}(static_cast<const shapes::Cylinder&>(shape));
+        }
+        case shapes::MESH:
+        {
+          return std::hash<shapes::Mesh>{}(static_cast<const shapes::Mesh&>(shape));
+        }
+        case shapes::SPHERE:
+        {
+          return std::hash<shapes::Sphere>{}(static_cast<const shapes::Sphere&>(shape));
+        }
+        default:
+          throw moveit::ConstructException("... we're using Shape (base) class implementation for hash");
+      }
+    }
+  };
+
   std::size_t std::hash<moveit::core::LinkModel>::operator()(moveit::core::LinkModel const& link) const noexcept
   {
     std::size_t h =0;
     // use Link name_
     boost::hash_combine(h, std::hash<std::string>{}(link.getName()));
-    boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*link.getParentJointModel()));
-    boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link.getParentLinkModel()));
+    // boost::hash_combine(h, std::hash<moveit::core::JointModel>{}(*link.getParentJointModel()));
+    // boost::hash_combine(h, std::hash<moveit::core::LinkModel>{}(*link.getParentLinkModel()));
     boost::hash_combine(h, std::hash<bool>{}(link.parentJointIsFixed()));
     boost::hash_combine(h, std::hash<bool>{}(link.jointOriginTransformIsIdentity()));
 
@@ -269,7 +268,7 @@ void LinkModel::setVisualMesh(const std::string& visual_mesh, const Eigen::Isome
     }
   
     auto shapes = link.getShapes(); 
-    for(auto const& x : shapes) {
+    for(auto x : shapes) {
       boost::hash_combine(h, std::hash<shapes::Shape>{}(*x));
     }
     boost::hash_combine(h, std::hash<Eigen::Vector3d>{}(link.getShapeExtentsAtOrigin()));
