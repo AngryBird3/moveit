@@ -264,9 +264,9 @@ std::size_t std::hash<moveit::core::JointModel>::operator()(moveit::core::JointM
   // variable_bounds_) I would just initialize this map. So no need for two loop to associate 
   // variable_bounds_ from the JointLimit to variable_names_ and then assign limits to VariableBounds. 
   // ANYHOW we don’t need to worry about the order of those, since the vector corresponds to the 
-  // local_variable_names_ index!
   std::hash<moveit::core::VariableBounds> variable_bound_hash;
   const auto variable_bounds = joint.getVariableBounds();
+  // local_variable_names_ index!
   for (auto &var : variable_bounds) {
     boost::hash_combine(h, variable_bound_hash(var));
   }
@@ -308,21 +308,18 @@ std::size_t std::hash<moveit::core::JointModel>::operator()(moveit::core::JointM
   boost::hash_combine(h, std::hash<int>{}(joint.getJointIndex()));
 
   // Get child class' hash too
-  // switch (joint.getType())
-  // {
-  //   case moveit::core::JointModel::PLANAR:
-  //     auto pl = dynamic_cast<const moveit::core::PlanarJointModel&>(joint);
-  //     boost::hash_combine(h, std::hash<const moveit::core::PlanarJointModel&>{}(pl));
-  //   case moveit::core::JointModel::PRISMATIC:
-  //     auto pr = dynamic_cast<const moveit::core::PrismaticJointModel&>(joint);
-  //     boost::hash_combine(h, std::hash<moveit::core::PrismaticJointModel>{}(pr));
-  //   case moveit::core::JointModel::FLOATING:
-  //     auto fl = dynamic_cast<const moveit::core::FloatingJointModel&>(joint);
-  //     boost::hash_combine(h, std::hash<moveit::core::FloatingJointModel>{}(fl));
-  //   case moveit::core::JointModel::REVOLUTE:
-  //     auto r = dynamic_cast<const moveit::core::RevoluteJointModel&>(joint);
-  //     boost::hash_combine(h, std::hash<moveit::core::RevoluteJointModel>{}(r));
-  // } 
+  switch (joint.getType())
+  {
+    case moveit::core::JointModel::PLANAR:
+      boost::hash_combine(h, std::hash<moveit::core::PlanarJointModel>{}(static_cast<const moveit::core::PlanarJointModel&>(joint)));
+    case moveit::core::JointModel::PRISMATIC:
+      boost::hash_combine(h, std::hash<moveit::core::PrismaticJointModel>{}(static_cast<const moveit::core::PrismaticJointModel&>(joint)));
+    case moveit::core::JointModel::FLOATING:
+      boost::hash_combine(h, std::hash<moveit::core::FloatingJointModel>{}(static_cast<const moveit::core::FloatingJointModel&>(joint)));
+    case moveit::core::JointModel::REVOLUTE:
+      boost::hash_combine(h, std::hash<moveit::core::RevoluteJointModel>{}(static_cast<const moveit::core::RevoluteJointModel>(joint)));
+    // For other joint types we don't care
+  } 
 
 
   return h;
