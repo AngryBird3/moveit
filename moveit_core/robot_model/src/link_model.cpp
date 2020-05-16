@@ -211,7 +211,6 @@ void LinkModel::setVisualMesh(const std::string& visual_mesh, const Eigen::Isome
   template<>
   struct std::hash<shapes::Shape>
   {
-    const std::string LOGNAME = "link_model";
     std::size_t operator()(const shapes::Shape &shape) const
     {
       switch (shape.type)
